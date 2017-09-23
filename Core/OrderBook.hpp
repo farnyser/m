@@ -2,6 +2,7 @@
 #define M_ORDERBOOK_HPP
 
 #include <set>
+#include <iterator>
 #include <vector>
 
 #include <Core/InstrumentId.hpp>
@@ -20,8 +21,8 @@ namespace M
 		const unsigned int time;
         const signed int signed_price;
 
-		TimedOrder(unsigned int time, Order order)
-		: Order(order.instrument, order.quantity, order.price, order.direction, order.type), time(time), signed_price(order.price * (order.direction == Direction::Buy ? -1 : 1))
+		TimedOrder(unsigned int time, Quantity quantity, Order order)
+		: Order(order.instrument, quantity, order.price, order.direction, order.type), time(time), signed_price(order.price * (order.direction == Direction::Buy ? -1 : 1))
 		{
 		}
 		
@@ -62,6 +63,8 @@ namespace M
 		{
 			std::vector<Quantity> q;
 			std::vector<Price> p;
+			size_t gc {0};
+			Quantity remaining = order.quantity;
 
             auto& orders = order.direction == Direction::Buy ? sells : buys;
             auto cmp = order.direction == Direction::Buy ?
@@ -72,28 +75,41 @@ namespace M
 			{
 				if (x.direction != order.direction && (cmp(x.price,order.price) || order.type == Type::Market))
 				{
-					if(x.quantity >= order.quantity)
+					if(x.quantity >= remaining)
 					{
-						q.push_back(order.quantity);
+						q.push_back(remaining);
 						p.push_back(x.price);
-						const_cast<TimedOrder&>(x).quantity -= order.quantity;
+						const_cast<TimedOrder&>(x).quantity -= remaining;
+						gc += x.quantity == 0;
+						remaining = 0;
 						break;
 					}
 					else  
 					{
+						gc++;
 						q.push_back(x.quantity);						
 						p.push_back(x.price);
+						remaining -= x.quantity;
 						const_cast<TimedOrder&>(x).quantity = 0;
-					}					
+					}
 				}
 			}
-			
-			if(order.quantity != 0 && order.type != Type::Market)
+
+			// garbage collector
+			if(gc > 0)
+			{
+				auto it = orders.begin();
+				std::advance(it, gc);
+				orders.erase(orders.begin(),it);
+			}
+
+			// insert remaining order part into book
+			if(remaining > 0 && order.type != Type::Market)
             {
                 if(order.direction == Direction::Buy)
-                  buys.insert(TimedOrder{current++, order});
+                  buys.insert(TimedOrder{current++, remaining, order});
                 else
-                  sells.insert(TimedOrder{current++, order});
+                  sells.insert(TimedOrder{current++, remaining, order});
             }
 
 			return Execution{q,p};

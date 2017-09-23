@@ -5,16 +5,22 @@
 #include <queue>
 
 template <typename T1, typename T2>
-void assertEquals(T1 t1, T2 t2)
+void assertEquals(const std::string& message, T1 t1, T2 t2)
 {
 	if(!(t1 == t2))
 	{
 		std::stringstream ss;
-		ss << "Assertion failed: ";
+		ss << message << ": ";
 		ss << "Expected:" << t1;
 		ss << ", Got:" << t2;
 		throw std::runtime_error(ss.str());
 	}
+}
+
+template <typename T1, typename T2>
+void assertEquals(T1 t1, T2 t2)
+{
+	assertEquals("Assertion failed",t1,t2);
 }
 
 template <typename T1, typename T2>

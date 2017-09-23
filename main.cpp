@@ -13,14 +13,14 @@ int main()
 		auto order = Order	{
 								InstrumentId{1}, 
 								Quantity{10 * i % 10}, 
-								Price{1975 + i % 50}, 
+								Price{1975 + i % 50 + (i % 500)/10},
 								i%10 > 5 ? Direction::Buy : Direction::Sell, 
-								Type::Limit
+								i%100 < 10 ? Type::Market : Type::Limit,
 							};
 							
 		auto result = book.Execute(order);
     }
 		
-	std::cout << "Hello, World!" << std::endl;
+	std::cout << "Hello, World !" << std::endl;
     return 0;
 }

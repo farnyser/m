@@ -5,12 +5,28 @@
 
 using namespace M;
 
+void assertNotExecuted(Execution exec)
+{
+    assertEquals("Execution count", 0, exec.price.size());
+    assertEquals("Execution count", 0, exec.quantity.size());
+}
+
 void assertExecutedAt(Price p, Quantity q, Execution exec)
 {
-    assertEquals(1, exec.price.size());
-    assertEquals(1, exec.quantity.size());
-    assertEquals(p, exec.price[0]);
-    assertEquals(q, exec.quantity[0]);
+    assertEquals("Execution count", 1, exec.price.size());
+    assertEquals("Execution count", 1, exec.quantity.size());
+    assertEquals("Price", p, exec.price[0]);
+    assertEquals("Quantity", q, exec.quantity[0]);
+}
+
+void assertExecutedAt(Price p0, Quantity q0, Price p1, Quantity q1, Execution exec)
+{
+    assertEquals("Execution count", 2, exec.price.size());
+    assertEquals("Execution count", 2, exec.quantity.size());
+    assertEquals("1st Price", p0, exec.price[0]);
+    assertEquals("1st Quantity", q0, exec.quantity[0]);
+    assertEquals("2nd Price", p1, exec.price[1]);
+    assertEquals("2nd Quantity", q1, exec.quantity[1]);
 }
 
 void simple_sell_buy_nomatch()
@@ -19,11 +35,8 @@ void simple_sell_buy_nomatch()
 	auto sell = Order::SellLimit(InstrumentId{1}, Quantity{10}, Price{2001});
 	auto buy = Order::BuyLimit(InstrumentId{1}, Quantity{10}, Price{1999});
 	
-	auto sellExec = book.Execute(sell);
-	auto buyExec = book.Execute(buy);
-	
-	assertEquals(0, sellExec.quantity.size());
-	assertEquals(0, buyExec.quantity.size());
+	assertNotExecuted(book.Execute(sell));
+	assertNotExecuted(book.Execute(buy));
 }
 
 void simple_sell_buy_match()
@@ -32,12 +45,8 @@ void simple_sell_buy_match()
 	auto sell = Order::SellLimit(InstrumentId{1}, Quantity{10}, Price{2000});
 	auto buy = Order::BuyLimit(InstrumentId{1}, Quantity{10}, Price{2000});
 	
-	auto sellExec = book.Execute(sell);
-	auto buyExec = book.Execute(buy);
-
-	assertEquals(0, sellExec.quantity.size());
-	assertEquals(10, buyExec.quantity[0]);
-	assertEquals(2000, buyExec.price[0]);
+	assertNotExecuted(book.Execute(sell));
+	assertExecutedAt(2000, 10, book.Execute(buy));
 }
 
 
@@ -47,13 +56,8 @@ void limit_sell_buy_match()
     auto sell = Order::SellLimit(InstrumentId{1}, Quantity{10}, Price{1999});
     auto buy = Order::BuyLimit(InstrumentId{1}, Quantity{10}, Price{2001});
 
-    auto sellExec = book.Execute(sell);
-    auto buyExec = book.Execute(buy);
-
-    assertEquals(0, sellExec.quantity.size());
-    assertEquals(1, buyExec.quantity.size());
-    assertEquals(10, buyExec.quantity[0]);
-    assertEquals(1999, buyExec.price[0]);
+    assertNotExecuted(book.Execute(sell));
+    assertExecutedAt(1999, 10, book.Execute(buy));
 }
 
 void simple_sell_limit_buy_market_match()
@@ -62,12 +66,8 @@ void simple_sell_limit_buy_market_match()
 	auto sell = Order::SellLimit(InstrumentId{1}, Quantity{10}, Price{2000});
 	auto buy = Order::Buy(InstrumentId{1}, Quantity{10});
 	
-	auto sellExec = book.Execute(sell);
-	auto buyExec = book.Execute(buy);
-
-	assertEquals(0, sellExec.quantity.size());
-	assertEquals(10, buyExec.quantity[0]);
-	assertEquals(2000, buyExec.price[0]);
+	assertNotExecuted(book.Execute(sell));
+	assertExecutedAt(2000, 10, book.Execute(buy));
 }
 
 void market_buy_rejected_when_no_seller()
@@ -75,30 +75,7 @@ void market_buy_rejected_when_no_seller()
 	auto book = OrderBook{InstrumentId{1}};
 	auto buy = Order::Buy(InstrumentId{1}, Quantity{10});
 	
-	auto buyExec = book.Execute(buy);
-
-	assertEquals(0, buyExec.quantity.size());
-	assertEquals(0, book.Size());
-}
-
-void simple_buy_matching_two_sells()
-{
-	auto book = OrderBook{InstrumentId{1}};
-	auto sell1 = Order::SellLimit(InstrumentId{1}, Quantity{3}, Price{2000});
-	auto sell2 = Order::SellLimit(InstrumentId{1}, Quantity{7}, Price{2000});
-	auto buy = Order::BuyLimit(InstrumentId{1}, Quantity{10}, Price{2000});
-		
-	auto sellExec1 = book.Execute(sell1);
-	auto sellExec2 = book.Execute(sell2);
-	auto buyExec = book.Execute(buy);
-
-	assertEquals(0, sellExec1.quantity.size());
-	assertEquals(0, sellExec2.quantity.size());
-	assertEquals(2, buyExec.quantity.size());
-	assertEquals(3, buyExec.quantity[0]);
-	assertEquals(2000, buyExec.price[0]);
-	assertEquals(7, buyExec.quantity[1]);
-	assertEquals(2000, buyExec.price[1]);
+	assertNotExecuted(book.Execute(buy));
 }
 
 void market_buy_matching_two_sells()
@@ -107,18 +84,10 @@ void market_buy_matching_two_sells()
 	auto sell1 = Order::SellLimit(InstrumentId{1}, Quantity{3}, Price{2000});
 	auto sell2 = Order::SellLimit(InstrumentId{1}, Quantity{7}, Price{2005});
 	auto buy = Order::Buy(InstrumentId{1}, Quantity{10});
-		
-	auto sellExec1 = book.Execute(sell1);
-	auto sellExec2 = book.Execute(sell2);
-	auto buyExec = book.Execute(buy);
 
-	assertEquals(0, sellExec1.quantity.size());
-	assertEquals(0, sellExec2.quantity.size());
-	assertEquals(2, buyExec.quantity.size());
-	assertEquals(3, buyExec.quantity[0]);
-	assertEquals(2000, buyExec.price[0]);
-	assertEquals(7, buyExec.quantity[1]);
-	assertEquals(2005, buyExec.price[1]);
+	assertNotExecuted(book.Execute(sell1));
+	assertNotExecuted(book.Execute(sell2));
+	assertExecutedAt(2000, 3, 2005, 7, book.Execute(buy));
 }
 
 void market_buy_matching_two_sells_in_order()
@@ -128,17 +97,9 @@ void market_buy_matching_two_sells_in_order()
 	auto sell2 = Order::SellLimit(InstrumentId{1}, Quantity{7}, Price{2000});
 	auto buy = Order::Buy(InstrumentId{1}, Quantity{10});
 		
-	auto sellExec1 = book.Execute(sell1);
-	auto sellExec2 = book.Execute(sell2);
-	auto buyExec = book.Execute(buy);
-
-	assertEquals(0, sellExec1.quantity.size());
-	assertEquals(0, sellExec2.quantity.size());
-	assertEquals(2, buyExec.quantity.size());
-	assertEquals(7, buyExec.quantity[0]);
-	assertEquals(2000, buyExec.price[0]);
-	assertEquals(3, buyExec.quantity[1]);
-	assertEquals(2005, buyExec.price[1]);
+	assertNotExecuted(book.Execute(sell1));
+	assertNotExecuted(book.Execute(sell2));
+	assertExecutedAt(2000, 7, 2005, 3, book.Execute(buy));
 }
 
 void lot_of_order_behavior()
@@ -152,30 +113,44 @@ void lot_of_order_behavior()
 	auto buy2 = Order::BuyLimit(InstrumentId{1}, Quantity{80}, Price{1945});
 	auto buy3 = Order::BuyLimit(InstrumentId{1}, Quantity{700}, Price{1940});
 
-    book.Execute(sell1);
-    book.Execute(sell2);
-    book.Execute(sell3);
-    book.Execute(sell4);
-    book.Execute(buy1);
-    book.Execute(buy2);
-    book.Execute(buy3);
+    assertNotExecuted(book.Execute(sell1));
+    assertNotExecuted(book.Execute(sell2));
+    assertNotExecuted(book.Execute(sell3));
+    assertNotExecuted(book.Execute(sell4));
+    assertNotExecuted(book.Execute(buy1));
+    assertNotExecuted(book.Execute(buy2));
+    assertNotExecuted(book.Execute(buy3));
 
 	assertEquals(7, book.Size());
 
     assertExecutedAt(1945, 50, book.Execute(Order::Sell(InstrumentId{1}, Quantity{50})));
 }
 
+void remain_partial_then_exec()
+{
+	auto book = OrderBook{InstrumentId{1}};
+
+	assertNotExecuted(book.Execute(Order::SellLimit(InstrumentId{1}, Quantity{100}, Price{2000})));
+	assertEquals(1, book.Size());
+
+	assertExecutedAt(2000, 100, book.Execute(Order::BuyLimit(InstrumentId{1}, Quantity{150}, Price{2000})));
+	assertEquals(1, book.Size());
+
+	assertExecutedAt(2000, 50, book.Execute(Order::SellLimit(InstrumentId{1}, Quantity{50}, Price{1990})));
+	assertEquals(0, book.Size());
+}
+
 int main()
 {
 	test("simple_sell_buy_match", simple_sell_buy_match);
 	test("simple_sell_buy_nomatch", simple_sell_buy_nomatch);
-	test("simple_buy_matching_two_sells", simple_buy_matching_two_sells);
 	test("simple_sell_limit_buy_market_match", simple_sell_limit_buy_market_match);
 	test("market_buy_matching_two_sells", market_buy_matching_two_sells);
 	test("market_buy_matching_two_sells_in_order", market_buy_matching_two_sells_in_order);
 	test("market_buy_rejected_when_no_seller", market_buy_rejected_when_no_seller);
 	test("limit_sell_buy_match", limit_sell_buy_match);
 	test("lot_of_order_behavior", lot_of_order_behavior);
+	test("remain_partial_then_exec", remain_partial_then_exec);
 
     return 0;
 }
