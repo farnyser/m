@@ -12,8 +12,8 @@ namespace M
 {
 	struct Execution
 	{
-		const std::vector<Quantity> quantity;
-		const std::vector<Price> price;
+		std::vector<Quantity> quantity;
+		std::vector<Price> price;
 	};
 	
 	struct TimedOrder : Order 
@@ -22,7 +22,9 @@ namespace M
         const signed int signed_price;
 
 		TimedOrder(unsigned int time, Quantity quantity, Order order)
-		: Order(order.instrument, quantity, order.price, order.direction, order.type), time(time), signed_price(order.price * (order.direction == Direction::Buy ? -1 : 1))
+		: Order(order.instrument, quantity, order.price, order.direction, order.type),
+		  time(time),
+		  signed_price(order.price * (order.direction == Direction::Buy ? -1 : 1))
 		{
 		}
 		
@@ -61,37 +63,30 @@ namespace M
 	
 		Execution Execute(const Order& order)
 		{
-			std::vector<Quantity> q;
-			std::vector<Price> p;
+			Execution result;
 			size_t gc {0};
 			Quantity remaining = order.quantity;
 
             auto& orders = order.direction == Direction::Buy ? sells : buys;
-            auto cmp = order.direction == Direction::Buy ?
-                       [](Price b, Price o) { return b <= o; }
-                       : [](Price b, Price o) { return b >= o; };
-			
+			auto signed_price = order.direction == Direction::Buy ? order.price : - order.price;
+
 			for(auto& x : orders)
 			{
-				if (x.direction != order.direction && (cmp(x.price,order.price) || order.type == Type::Market))
+				if (x.signed_price <= signed_price || order.type == Type::Market)
 				{
-					if(x.quantity >= remaining)
-					{
-						q.push_back(remaining);
-						p.push_back(x.price);
-						const_cast<TimedOrder&>(x).quantity -= remaining;
-						gc += x.quantity == 0;
-						remaining = 0;
+					auto q = x.quantity < remaining ? x.quantity : remaining;
+					result.quantity.push_back(q);
+					result.price.push_back(x.price);
+					const_cast<TimedOrder&>(x).quantity -= q;
+					remaining -= q;
+					gc += x.quantity == 0;
+
+					if(remaining == 0)
 						break;
-					}
-					else  
-					{
-						gc++;
-						q.push_back(x.quantity);						
-						p.push_back(x.price);
-						remaining -= x.quantity;
-						const_cast<TimedOrder&>(x).quantity = 0;
-					}
+				}
+				else
+				{
+					break;
 				}
 			}
 
@@ -112,7 +107,7 @@ namespace M
                   sells.insert(TimedOrder{current++, remaining, order});
             }
 
-			return Execution{q,p};
+			return result;
 		}
 		
 		size_t Size() const 
