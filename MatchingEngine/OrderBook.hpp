@@ -104,7 +104,7 @@ namespace M
 			// insert remaining order part into book
 			InsertInBook(order, remaining);
 
-            if(result.price.size())
+            if(remaining != order.quantity)
                 priceCallback(*result.price.rbegin());
 
 			return result;
