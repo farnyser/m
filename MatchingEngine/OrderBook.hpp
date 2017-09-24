@@ -12,13 +12,14 @@
 
 namespace M
 {
-	template <typename TOrder, typename TPriceCallback>
+	template <typename TOrder, typename TPriceCallback, typename TExecutionCallback>
     class OrderBook
     {
 	private:
 		std::set<MatchingOrder<TOrder>> buys;
 		std::set<MatchingOrder<TOrder>> sells;
         TPriceCallback priceCallback;
+		TExecutionCallback executionCallback;
 
 		bool EnsureAvailability(const std::set<MatchingOrder<TOrder>>& orders, Quantity quantity, unsigned int signed_price, Type type)
 		{
@@ -51,8 +52,8 @@ namespace M
 		const InstrumentId instrument;
 		unsigned int current{0};
 	
-		OrderBook(const InstrumentId id, TPriceCallback priceCallback)
-                : instrument(id), priceCallback(priceCallback)
+		OrderBook(const InstrumentId id, TPriceCallback priceCallback, TExecutionCallback executionCallback)
+                : instrument(id), priceCallback(priceCallback), executionCallback(executionCallback)
         {
         }
 	
@@ -81,7 +82,8 @@ namespace M
 					const_cast<MatchingOrder<TOrder>&>(x).quantity -= q;
 					remaining -= q;
 					gc += x.quantity == 0;
-
+					executionCallback(x, q, x.price);
+					executionCallback(order, q, x.price);
 					if(remaining == 0)
 						break;
 				}
@@ -116,10 +118,27 @@ namespace M
 
 	namespace Builder
 	{
-		template <typename TOrder, typename TPriceCallback>
-		M::OrderBook<TOrder, TPriceCallback> OrderBook(M::InstrumentId id, TPriceCallback priceCallback)
+		void VoidPriceCallback(Price) {}
+
+		template <typename TOrder>
+		void VoidExecutionCallback(const TOrder&, Price, Quantity) {}
+
+		template <typename TOrder>
+		M::OrderBook<TOrder, void(*)(Price), void(*)(const TOrder&, Price, Quantity)> OrderBook(M::InstrumentId id)
 		{
-			return M::OrderBook<TOrder, TPriceCallback>(id, priceCallback);
+			return M::OrderBook<TOrder, void(*)(Price), void(*)(const TOrder&, Price, Quantity)>(id, VoidPriceCallback, VoidExecutionCallback<TOrder>);
+		};
+
+		template <typename TOrder, typename TPriceCallback>
+		M::OrderBook<TOrder, TPriceCallback, void(*)(const TOrder& o, Price p, Quantity q)> OrderBook(M::InstrumentId id, TPriceCallback priceCallback)
+		{
+			return M::OrderBook<TOrder, TPriceCallback, void(*)(const TOrder&, Price, Quantity)>(id, priceCallback, VoidExecutionCallback<TOrder>);
+		};
+
+		template <typename TOrder, typename TPriceCallback, typename TExecutionCallback>
+		M::OrderBook<TOrder, TPriceCallback, TExecutionCallback> OrderBook(M::InstrumentId id, TPriceCallback priceCallback, TExecutionCallback executionCallback)
+		{
+			return M::OrderBook<TOrder, TPriceCallback, TExecutionCallback>(id, priceCallback, executionCallback);
 		};
 	}
 }

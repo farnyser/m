@@ -7,7 +7,9 @@ using namespace M;
 
 auto BuildOrderBook(InstrumentId id)
 {
-	return Builder::OrderBook<Order>(id, [](Price p){});
+	return Builder::OrderBook<Order>(id, [](Price p){}, [](const Order& order, Price p, Quantity q){
+//		std::cout << "Order executed at " << p << " (quantity: " << q << ")" << std::endl;
+	});
 }
 
 void assertNotExecuted(Execution exec)
