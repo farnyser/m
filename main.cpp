@@ -21,6 +21,8 @@ int main()
                 static_cast<Price>(1975 + i % 50 + (i % 500) / 10),
 				i % 10 > 5 ? Direction::Buy : Direction::Sell,
 				i % 100 < 10 ? Type::Market : Type::Limit,
+				i % 2 ? Fulfillment::Partial : Fulfillment::Full,
+				i % 10 < 5  ? TimeInForce::ImmediateOrCancel : TimeInForce::Day,
 			};
 
 			execCount += book.Execute(order).quantity.size();

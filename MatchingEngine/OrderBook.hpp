@@ -16,9 +16,36 @@ namespace M
     class OrderBook
     {
 	private:
-		std::set<TimedOrder<TOrder>> buys;
-		std::set<TimedOrder<TOrder>> sells;
+		std::set<MatchingOrder<TOrder>> buys;
+		std::set<MatchingOrder<TOrder>> sells;
         TPriceCallback priceCallback;
+
+		bool EnsureAvailability(const std::set<MatchingOrder<TOrder>>& orders, Quantity quantity, unsigned int signed_price, Type type)
+		{
+			for(auto& x : orders)
+			{
+				if(x.signed_price > signed_price && type != Type::Market)
+					return false;
+
+				if(quantity > x.quantity)
+					quantity -= x.quantity;
+				else
+					return true;
+			}
+
+			return false;
+		}
+
+		void InsertInBook(const TOrder& order, Quantity remaining)
+		{
+			if(remaining == 0 || order.type == Type::Market || order.timeInForce == TimeInForce::ImmediateOrCancel)
+				return;
+
+			if(order.direction == Direction::Buy)
+				buys.insert(MatchingOrder<TOrder>{current++, remaining, order});
+			else
+				sells.insert(MatchingOrder<TOrder>{current++, remaining, order});
+		}
 
 	public:
 		const InstrumentId instrument;
@@ -38,6 +65,12 @@ namespace M
             auto& orders = order.direction == Direction::Buy ? sells : buys;
 			auto signed_price = order.direction == Direction::Buy ? order.price : - order.price;
 
+			if(order.fulfillment == Fulfillment::Full && !EnsureAvailability(orders, order.quantity, signed_price, order.type))
+			{
+				InsertInBook(order, order.quantity);
+				return result;
+			}
+
 			for(auto& x : orders)
 			{
 				if (x.signed_price <= signed_price || order.type == Type::Market)
@@ -45,7 +78,7 @@ namespace M
 					auto q = x.quantity < remaining ? x.quantity : remaining;
 					result.quantity.push_back(q);
 					result.price.push_back(x.price);
-					const_cast<TimedOrder<TOrder>&>(x).quantity -= q;
+					const_cast<MatchingOrder<TOrder>&>(x).quantity -= q;
 					remaining -= q;
 					gc += x.quantity == 0;
 
@@ -67,13 +100,7 @@ namespace M
 			}
 
 			// insert remaining order part into book
-			if(remaining > 0 && order.type != Type::Market)
-            {
-                if(order.direction == Direction::Buy)
-                  buys.insert(TimedOrder<TOrder>{current++, remaining, order});
-                else
-                  sells.insert(TimedOrder<TOrder>{current++, remaining, order});
-            }
+			InsertInBook(order, remaining);
 
             if(result.price.size())
                 priceCallback(*result.price.rbegin());

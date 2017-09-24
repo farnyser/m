@@ -145,6 +145,86 @@ void remain_partial_then_exec()
 	assertEquals(0, book.Size());
 }
 
+void partial_market_order_should_be_filled_partially_if_not_enough_available()
+{
+	auto book = BuildOrderBook(1);
+
+	assertNotExecuted(book.Execute(Order::SellLimit(InstrumentId{1}, Quantity{100}, Price{2000})));
+	assertNotExecuted(book.Execute(Order::SellLimit(InstrumentId{1}, Quantity{50}, Price{2002})));
+	assertExecutedAt(2000, 100, 2002, 50, book.Execute(Order::Buy(InstrumentId{1}, Quantity{200}).Partial()));
+	assertEquals(0, book.Size());
+}
+
+void all_or_nothing_market_order_should_be_canceled_if_not_enough_available()
+{
+	auto book = BuildOrderBook(1);
+
+	assertNotExecuted(book.Execute(Order::SellLimit(InstrumentId{1}, Quantity{100}, Price{2000})));
+	assertNotExecuted(book.Execute(Order::SellLimit(InstrumentId{1}, Quantity{50}, Price{2002})));
+	assertNotExecuted(book.Execute(Order::Buy(InstrumentId{1}, Quantity{200}).FullOrNothing()));
+	assertEquals(2, book.Size());
+}
+
+void all_or_nothing_market_order_should_be_executed_if_enough_quantity()
+{
+	auto book = BuildOrderBook(1);
+
+	assertNotExecuted(book.Execute(Order::SellLimit(InstrumentId{1}, Quantity{100}, Price{2000})));
+	assertNotExecuted(book.Execute(Order::SellLimit(InstrumentId{1}, Quantity{150}, Price{2002})));
+	assertExecutedAt(2000, 100, 2002, 100, book.Execute(Order::Buy(InstrumentId{1}, Quantity{200}).FullOrNothing()));
+	assertEquals(1, book.Size());
+}
+
+void partial_limit_order_should_be_filled_partially_if_not_enough_available()
+{
+	auto book = BuildOrderBook(1);
+
+	assertNotExecuted(book.Execute(Order::SellLimit(InstrumentId{1}, Quantity{100}, Price{2000})));
+	assertNotExecuted(book.Execute(Order::SellLimit(InstrumentId{1}, Quantity{50}, Price{2002})));
+	assertExecutedAt(2000, 100, book.Execute(Order::BuyLimit(InstrumentId{1}, Quantity{200}, Price{2001}).Partial()));
+	assertEquals(2, book.Size());
+}
+
+void all_or_nothing_limit_order_should_be_inserted_in_book_if_not_enough_available()
+{
+	auto book = BuildOrderBook(1);
+
+	assertNotExecuted(book.Execute(Order::SellLimit(InstrumentId{1}, Quantity{100}, Price{2000})));
+	assertNotExecuted(book.Execute(Order::SellLimit(InstrumentId{1}, Quantity{50}, Price{2002})));
+	assertNotExecuted(book.Execute(Order::BuyLimit(InstrumentId{1}, Quantity{200}, Price{2001}).FullOrNothing()));
+	assertEquals(3, book.Size());
+}
+
+void all_or_nothing_limit_order_should_be_executed_if_enough_available()
+{
+	auto book = BuildOrderBook(1);
+
+	assertNotExecuted(book.Execute(Order::SellLimit(InstrumentId{1}, Quantity{100}, Price{2000})));
+	assertNotExecuted(book.Execute(Order::SellLimit(InstrumentId{1}, Quantity{150}, Price{2001})));
+	assertExecutedAt(2000, 100, 2001, 100, book.Execute(Order::BuyLimit(InstrumentId{1}, Quantity{200}, Price{2001}).FullOrNothing()));
+	assertEquals(1, book.Size());
+}
+
+void immediate_or_cancel_all_or_nothing_order_should_be_canceled_if_not_filled()
+{
+	auto book = BuildOrderBook(1);
+
+	assertNotExecuted(book.Execute(Order::SellLimit(InstrumentId{1}, Quantity{100}, Price{2000})));
+	assertNotExecuted(book.Execute(Order::SellLimit(InstrumentId{1}, Quantity{50}, Price{2002})));
+	assertNotExecuted(book.Execute(Order::BuyLimit(InstrumentId{1}, Quantity{200}, Price{2001}).FullOrNothing().ImmediateOrCancel()));
+	assertEquals(2, book.Size());
+}
+
+void partial_limit_order_should_be_filled_partially_if_not_enough_available_and_remaining_should_be_canceled()
+{
+	auto book = BuildOrderBook(1);
+
+	assertNotExecuted(book.Execute(Order::SellLimit(InstrumentId{1}, Quantity{100}, Price{2000})));
+	assertNotExecuted(book.Execute(Order::SellLimit(InstrumentId{1}, Quantity{50}, Price{2002})));
+	assertExecutedAt(2000, 100, book.Execute(Order::BuyLimit(InstrumentId{1}, Quantity{200}, Price{2001}).Partial().ImmediateOrCancel()));
+	assertEquals(1, book.Size());
+}
+
 int main()
 {
 	test("simple_sell_buy_match", simple_sell_buy_match);
@@ -156,6 +236,20 @@ int main()
 	test("limit_sell_buy_match", limit_sell_buy_match);
 	test("lot_of_order_behavior", lot_of_order_behavior);
 	test("remain_partial_then_exec", remain_partial_then_exec);
+
+	// partial/full exec of market order
+	test("partial_market_order_should_be_filled_partially_if_not_enough_available", partial_market_order_should_be_filled_partially_if_not_enough_available);
+	test("all_or_nothing_market_order_should_be_canceled_if_not_enough_available", all_or_nothing_market_order_should_be_canceled_if_not_enough_available);
+	test("all_or_nothing_market_order_should_be_executed_if_enough_quantity", all_or_nothing_market_order_should_be_executed_if_enough_quantity);
+
+	// partial/full exec of limit order
+	test("partial_limit_order_should_be_filled_partially_if_not_enough_available", partial_limit_order_should_be_filled_partially_if_not_enough_available);
+	test("all_or_nothing_limit_order_should_be_inserted_in_book_if_not_enough_available", all_or_nothing_limit_order_should_be_inserted_in_book_if_not_enough_available);
+	test("all_or_nothing_limit_order_should_be_executed_if_enough_available", all_or_nothing_limit_order_should_be_executed_if_enough_available);
+
+	// time in force (immediate or cancel)
+	test("immediate_or_cancel_all_or_nothing_order_should_be_canceled_if_not_filled", immediate_or_cancel_all_or_nothing_order_should_be_canceled_if_not_filled);
+	test("partial_limit_order_should_be_filled_partially_if_not_enough_available_and_remaining_should_be_canceled", partial_limit_order_should_be_filled_partially_if_not_enough_available_and_remaining_should_be_canceled);
 
     return 0;
 }

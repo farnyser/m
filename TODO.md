@@ -1,9 +1,11 @@
-TODO
-====
+ROADMAP
+=======
+
+Next steps
+----------
 
 - id in order
 - callback on order execution
-- handle all or nothing orders
 - handle order cancellation
 - handle order update
 - handle stop loss orders

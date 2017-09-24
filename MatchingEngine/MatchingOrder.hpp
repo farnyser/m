@@ -4,18 +4,18 @@
 namespace M
 {
     template<typename TOrder>
-    struct TimedOrder : TOrder
+    struct MatchingOrder : TOrder
     {
         const unsigned int time;
         const signed int signed_price;
 
-        TimedOrder(unsigned int time, Quantity quantity, TOrder order)
-                : TOrder(order.instrument, quantity, order.price, order.direction, order.type),
+        MatchingOrder(unsigned int time, Quantity quantity, TOrder order)
+                : TOrder(order.instrument, quantity, order.price, order.direction, order.type, order.fulfillment),
                   time(time),
                   signed_price(order.price * (order.direction == Direction::Buy ? -1 : 1)) {
         }
 
-        bool operator<(const TimedOrder<TOrder> &other) const
+        bool operator<(const MatchingOrder<TOrder> &other) const
         {
             if (this->type == Type::Market && other.type != Type::Market)
                 return true;
