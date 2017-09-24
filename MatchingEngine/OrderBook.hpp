@@ -12,19 +12,22 @@
 
 namespace M
 {
-
-	template <typename TOrder>
+	template <typename TOrder, typename TPriceCallback>
     class OrderBook
     {
 	private:
 		std::set<TimedOrder<TOrder>> buys;
 		std::set<TimedOrder<TOrder>> sells;
+        TPriceCallback priceCallback;
 
 	public:
 		const InstrumentId instrument;
 		unsigned int current{0};
 	
-		OrderBook(const InstrumentId id) : instrument(id) {}
+		OrderBook(const InstrumentId id, TPriceCallback priceCallback)
+                : instrument(id), priceCallback(priceCallback)
+        {
+        }
 	
 		Execution Execute(const Order& order)
 		{
@@ -72,6 +75,9 @@ namespace M
                   sells.insert(TimedOrder<TOrder>{current++, remaining, order});
             }
 
+            if(result.price.size())
+                priceCallback(*result.price.rbegin());
+
 			return result;
 		}
 		
@@ -80,6 +86,15 @@ namespace M
 			return buys.size() + sells.size();
 		}
     };
+
+	namespace Builder
+	{
+		template <typename TOrder, typename TPriceCallback>
+		M::OrderBook<TOrder, TPriceCallback> OrderBook(M::InstrumentId id, TPriceCallback priceCallback)
+		{
+			return M::OrderBook<TOrder, TPriceCallback>(id, priceCallback);
+		};
+	}
 }
 
 #endif //M_ORDERBOOK_HPP

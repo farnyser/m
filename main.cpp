@@ -6,7 +6,8 @@
 int main()
 {
     using namespace M;
-	auto book = OrderBook<Order>{InstrumentId{1}};
+	auto priceCallback = [](Price p){};
+	auto book = Builder::OrderBook<Order>(InstrumentId{1}, priceCallback);
 	auto execCount = size_t{0};
 
 	test("simulation", [&]()
