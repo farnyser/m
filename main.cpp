@@ -1,12 +1,12 @@
 #include <iostream>
 #include <Core/Order.hpp>
-#include <Core/OrderBook.hpp>
+#include <MatchingEngine/OrderBook.hpp>
 #include <Tests/Assert.hpp>
 
 int main()
 {
     using namespace M;
-	auto book = OrderBook{InstrumentId{1}};
+	auto book = OrderBook<Order>{InstrumentId{1}};
 	auto execCount = size_t{0};
 
 	test("simulation", [&]()
@@ -16,8 +16,8 @@ int main()
 			auto order = Order
 			{
 				InstrumentId{1},
-				Quantity{10 * (i % 10)},
-				Price{1975 + i % 50 + (i % 500) / 10},
+				static_cast<Quantity>(10 * (i % 10)),
+                static_cast<Price>(1975 + i % 50 + (i % 500) / 10),
 				i % 10 > 5 ? Direction::Buy : Direction::Sell,
 				i % 100 < 10 ? Type::Market : Type::Limit,
 			};

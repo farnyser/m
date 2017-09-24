@@ -7,53 +7,18 @@
 
 #include <Core/InstrumentId.hpp>
 #include <Core/Quantity.hpp>
+#include <MatchingEngine/MatchingOrder.hpp>
+#include <Core/Execution.hpp>
 
 namespace M
 {
-	struct Execution
-	{
-		std::vector<Quantity> quantity;
-		std::vector<Price> price;
-	};
-	
-	struct TimedOrder : Order 
-	{
-		const unsigned int time;
-        const signed int signed_price;
 
-		TimedOrder(unsigned int time, Quantity quantity, Order order)
-		: Order(order.instrument, quantity, order.price, order.direction, order.type),
-		  time(time),
-		  signed_price(order.price * (order.direction == Direction::Buy ? -1 : 1))
-		{
-		}
-		
-		bool operator<(const TimedOrder& other) const
-		{
-			if(type == Type::Market && other.type != Type::Market)
-				return true;
-			if(type != Type::Market && other.type == Type::Market)
-				return false;
-
-			if(signed_price < other.signed_price)
-				return true;
-			if(signed_price > other.signed_price)
-				return false;
-
-			if(time < other.time)
-				return true;
-			if(time > other.time)
-				return false;
-
-			return false;
-		}
-	};
-	
+	template <typename TOrder>
     class OrderBook
     {
 	private:
-		std::set<TimedOrder> buys;
-		std::set<TimedOrder> sells;
+		std::set<TimedOrder<TOrder>> buys;
+		std::set<TimedOrder<TOrder>> sells;
 
 	public:
 		const InstrumentId instrument;
@@ -77,7 +42,7 @@ namespace M
 					auto q = x.quantity < remaining ? x.quantity : remaining;
 					result.quantity.push_back(q);
 					result.price.push_back(x.price);
-					const_cast<TimedOrder&>(x).quantity -= q;
+					const_cast<TimedOrder<TOrder>&>(x).quantity -= q;
 					remaining -= q;
 					gc += x.quantity == 0;
 
@@ -102,9 +67,9 @@ namespace M
 			if(remaining > 0 && order.type != Type::Market)
             {
                 if(order.direction == Direction::Buy)
-                  buys.insert(TimedOrder{current++, remaining, order});
+                  buys.insert(TimedOrder<TOrder>{current++, remaining, order});
                 else
-                  sells.insert(TimedOrder{current++, remaining, order});
+                  sells.insert(TimedOrder<TOrder>{current++, remaining, order});
             }
 
 			return result;
