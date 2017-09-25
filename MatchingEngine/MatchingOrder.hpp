@@ -10,9 +10,11 @@ namespace M
         const signed int signed_price;
 
         MatchingOrder(unsigned int time, Quantity quantity, TOrder order)
-                : TOrder(order.instrument, quantity, order.price, order.direction, order.type, order.fulfillment),
+                : TOrder(order),
                   time(time),
-                  signed_price(order.price * (order.direction == Direction::Buy ? -1 : 1)) {
+                  signed_price(order.price * (order.direction == Direction::Buy ? -1 : 1))
+		{
+			this->quantity = quantity;
         }
 
         bool operator<(const MatchingOrder<TOrder> &other) const

@@ -2,12 +2,13 @@
 #include <Core/Order.hpp>
 #include <MatchingEngine/OrderBook.hpp>
 #include <Tests/Assert.hpp>
+#include <Core/Id.hpp>
 
 int main()
 {
     using namespace M;
 	auto priceCallback = [](Price p){};
-	auto book = Builder::OrderBook<Order>(InstrumentId{1}, priceCallback);
+	auto book = Builder::OrderBook<Id<Order>>(InstrumentId{1}, priceCallback);
 	auto execCount = size_t{0};
 
 	test("simulation", [&]()
@@ -25,7 +26,8 @@ int main()
 				i % 10 < 5  ? TimeInForce::ImmediateOrCancel : TimeInForce::Day,
 			};
 
-			execCount += book.Execute(order).quantity.size();
+			auto identifiedOrder = Id<Order>(i, order);
+			execCount += book.Execute(identifiedOrder).quantity.size();
 		}
 	});
 

@@ -57,7 +57,7 @@ namespace M
         {
         }
 	
-		Execution Execute(const Order& order)
+		Execution Execute(const TOrder& order)
 		{
 			Execution result;
 			size_t gc {0};
