@@ -111,7 +111,7 @@ namespace M
 				auto& orders = i == 0 ? buys : sells;
 				for(auto it = orders.begin(); it != orders.end(); ++it)
 				{
-					if(it->id == id)
+					if(it->identifier == id)
 					{
 						orders.erase(it);
 						return true;

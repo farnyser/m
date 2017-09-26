@@ -50,6 +50,28 @@ namespace M
 		}
 
 		template <typename TBook, typename TOrder>
+		void assertCanceled(TBook& book, const TOrder& o)
+		{
+			auto initialSize = book.first.Size();
+			auto order = WithId(o);
+			book.first.Cancel(order.identifier);
+			auto finalSize = book.first.Size();
+
+			assertEquals("Size", initialSize - 1, finalSize);
+		}
+
+		template <typename TBook, typename TOrder>
+		void assertNotCanceled(TBook& book, const TOrder& o)
+		{
+			auto initialSize = book.first.Size();
+			auto order = WithId(o);
+			book.first.Cancel(order.identifier);
+			auto finalSize = book.first.Size();
+
+			assertEquals("Size", initialSize, finalSize);
+		}
+
+		template <typename TBook, typename TOrder>
 		void assertExecutedAt(TBook& book, Price p, Quantity q, const TOrder& o)
 		{
 			auto order = WithId(o);

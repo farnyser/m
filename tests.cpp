@@ -226,6 +226,7 @@ int main()
 	test("partial_limit_order_should_be_filled_partially_if_not_enough_available_and_remaining_should_be_canceled", partial_limit_order_should_be_filled_partially_if_not_enough_available_and_remaining_should_be_canceled);
 
 	test("PlaceUpdateCancelTests::should_cancel_pending_order", PlaceUpdateCancelTests::should_cancel_pending_order);
+	test("PlaceUpdateCancelTests::should_not_cancel_executed_order", PlaceUpdateCancelTests::should_not_cancel_executed_order);
 
     return 0;
 }
