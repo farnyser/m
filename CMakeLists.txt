@@ -9,7 +9,7 @@ set(ME_SOURCE_FILES MatchingEngine/MatchingOrder.hpp MatchingEngine/OrderBook.hp
 set(TOOLING_FILES Tests/Assert.hpp)
 
 set(SOURCE_FILES main.cpp ${CORE_SOURCE_FILES} ${ME_SOURCE_FILES} ${TOOLING_FILES})
-set(TEST_SOURCE_FILES tests.cpp ${CORE_SOURCE_FILES} ${ME_SOURCE_FILES} ${TOOLING_FILES})
+set(TEST_SOURCE_FILES tests.cpp ${CORE_SOURCE_FILES} ${ME_SOURCE_FILES} ${TOOLING_FILES} Tests/PlaceUpdateCancelTests.hpp Tests/AssertExtension.hpp)
 
 add_executable(m ${SOURCE_FILES})
 add_executable(tests ${TEST_SOURCE_FILES})

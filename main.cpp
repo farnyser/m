@@ -8,8 +8,8 @@ int main()
 {
     using namespace M;
 	auto priceCallback = [](Price p){};
-	auto book = Builder::OrderBook<Id<Order>>(InstrumentId{1}, priceCallback);
 	auto execCount = size_t{0};
+	auto book = Builder::OrderBook<Id<Order>>(InstrumentId{1}, priceCallback, [&](const Id<Order>& order, Price p, Quantity q){ execCount++; });
 
 	test("simulation", [&]()
 	{
@@ -27,7 +27,7 @@ int main()
 			};
 
 			auto identifiedOrder = Id<Order>(i, order);
-			execCount += book.Execute(identifiedOrder).quantity.size();
+			book.Execute(identifiedOrder);
 		}
 	});
 

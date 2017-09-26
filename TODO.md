@@ -12,6 +12,4 @@ Next steps
 Ideas
 -----
 
-- allocate execution result from pool ?
 - pool backed set ?
-- remove return value and use only callback ?

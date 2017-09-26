@@ -2,45 +2,11 @@
 #include <Core/Order.hpp>
 #include <MatchingEngine/OrderBook.hpp>
 #include <Tests/Assert.hpp>
+#include <Tests/AssertExtension.hpp>
+#include <Tests/PlaceUpdateCancelTests.hpp>
 
 using namespace M;
-
-auto BuildOrderBook(InstrumentId id)
-{
-	return Builder::OrderBook<Order>(id, [](Price p){}, [](const Order& order, Price p, Quantity q){
-//		std::cout << "Order executed at " << p << " (quantity: " << q << ")" << std::endl;
-	});
-}
-
-template <typename TBook, typename TOrder>
-void assertNotExecuted(TBook& book, const TOrder& order)
-{
-	auto exec = book.Execute(order);
-    assertEquals("Execution count", 0, exec.price.size());
-    assertEquals("Execution count", 0, exec.quantity.size());
-}
-
-template <typename TBook, typename TOrder>
-void assertExecutedAt(TBook& book, Price p, Quantity q, const TOrder& order)
-{
-	auto exec = book.Execute(order);
-	assertEquals("Execution count", 1, exec.price.size());
-    assertEquals("Execution count", 1, exec.quantity.size());
-    assertEquals("Price", p, exec.price[0]);
-    assertEquals("Quantity", q, exec.quantity[0]);
-}
-
-template <typename TBook, typename TOrder>
-void assertExecutedAt(TBook& book, Price p0, Quantity q0, Price p1, Quantity q1, const TOrder& order)
-{
-	auto exec = book.Execute(order);
-	assertEquals("Execution count", 2, exec.price.size());
-    assertEquals("Execution count", 2, exec.quantity.size());
-    assertEquals("1st Price", p0, exec.price[0]);
-    assertEquals("1st Quantity", q0, exec.quantity[0]);
-    assertEquals("2nd Price", p1, exec.price[1]);
-    assertEquals("2nd Quantity", q1, exec.quantity[1]);
-}
+using namespace M::Tests;
 
 void simple_sell_buy_nomatch()
 {
@@ -134,7 +100,7 @@ void lot_of_order_behavior()
     assertNotExecuted(book, buy2);
     assertNotExecuted(book, buy3);
 
-	assertEquals(7, book.Size());
+	assertEquals(7, book.first.Size());
 
     assertExecutedAt(book, 1945, 50, (Order::Sell(InstrumentId{1}, Quantity{50})));
 }
@@ -144,13 +110,13 @@ void remain_partial_then_exec()
 	auto book = BuildOrderBook(1);
 
 	assertNotExecuted(book, Order::SellLimit(InstrumentId{1}, Quantity{100}, Price{2000}));
-	assertEquals(1, book.Size());
+	assertEquals(1, book.first.Size());
 
 	assertExecutedAt(book, 2000, 100, (Order::BuyLimit(InstrumentId{1}, Quantity{150}, Price{2000})));
-	assertEquals(1, book.Size());
+	assertEquals(1, book.first.Size());
 
 	assertExecutedAt(book, 2000, 50, (Order::SellLimit(InstrumentId{1}, Quantity{50}, Price{1990})));
-	assertEquals(0, book.Size());
+	assertEquals(0, book.first.Size());
 }
 
 void partial_market_order_should_be_filled_partially_if_not_enough_available()
@@ -160,7 +126,7 @@ void partial_market_order_should_be_filled_partially_if_not_enough_available()
 	assertNotExecuted(book, Order::SellLimit(InstrumentId{1}, Quantity{100}, Price{2000}));
 	assertNotExecuted(book, Order::SellLimit(InstrumentId{1}, Quantity{50}, Price{2002}));
 	assertExecutedAt(book, 2000, 100, 2002, 50, (Order::Buy(InstrumentId{1}, Quantity{200}).Partial()));
-	assertEquals(0, book.Size());
+	assertEquals(0, book.first.Size());
 }
 
 void all_or_nothing_market_order_should_be_canceled_if_not_enough_available()
@@ -170,7 +136,7 @@ void all_or_nothing_market_order_should_be_canceled_if_not_enough_available()
 	assertNotExecuted(book, Order::SellLimit(InstrumentId{1}, Quantity{100}, Price{2000}));
 	assertNotExecuted(book, Order::SellLimit(InstrumentId{1}, Quantity{50}, Price{2002}));
 	assertNotExecuted(book, Order::Buy(InstrumentId{1}, Quantity{200}).FullOrNothing());
-	assertEquals(2, book.Size());
+	assertEquals(2, book.first.Size());
 }
 
 void all_or_nothing_market_order_should_be_executed_if_enough_quantity()
@@ -180,7 +146,7 @@ void all_or_nothing_market_order_should_be_executed_if_enough_quantity()
 	assertNotExecuted(book, Order::SellLimit(InstrumentId{1}, Quantity{100}, Price{2000}));
 	assertNotExecuted(book, Order::SellLimit(InstrumentId{1}, Quantity{150}, Price{2002}));
 	assertExecutedAt(book, 2000, 100, 2002, 100, (Order::Buy(InstrumentId{1}, Quantity{200}).FullOrNothing()));
-	assertEquals(1, book.Size());
+	assertEquals(1, book.first.Size());
 }
 
 void partial_limit_order_should_be_filled_partially_if_not_enough_available()
@@ -190,7 +156,7 @@ void partial_limit_order_should_be_filled_partially_if_not_enough_available()
 	assertNotExecuted(book, Order::SellLimit(InstrumentId{1}, Quantity{100}, Price{2000}));
 	assertNotExecuted(book, Order::SellLimit(InstrumentId{1}, Quantity{50}, Price{2002}));
 	assertExecutedAt(book, 2000, 100, (Order::BuyLimit(InstrumentId{1}, Quantity{200}, Price{2001}).Partial()));
-	assertEquals(2, book.Size());
+	assertEquals(2, book.first.Size());
 }
 
 void all_or_nothing_limit_order_should_be_inserted_in_book_if_not_enough_available()
@@ -200,7 +166,7 @@ void all_or_nothing_limit_order_should_be_inserted_in_book_if_not_enough_availab
 	assertNotExecuted(book, Order::SellLimit(InstrumentId{1}, Quantity{100}, Price{2000}));
 	assertNotExecuted(book, Order::SellLimit(InstrumentId{1}, Quantity{50}, Price{2002}));
 	assertNotExecuted(book, Order::BuyLimit(InstrumentId{1}, Quantity{200}, Price{2001}).FullOrNothing());
-	assertEquals(3, book.Size());
+	assertEquals(3, book.first.Size());
 }
 
 void all_or_nothing_limit_order_should_be_executed_if_enough_available()
@@ -210,7 +176,7 @@ void all_or_nothing_limit_order_should_be_executed_if_enough_available()
 	assertNotExecuted(book, Order::SellLimit(InstrumentId{1}, Quantity{100}, Price{2000}));
 	assertNotExecuted(book, Order::SellLimit(InstrumentId{1}, Quantity{150}, Price{2001}));
 	assertExecutedAt(book, 2000, 100, 2001, 100, (Order::BuyLimit(InstrumentId{1}, Quantity{200}, Price{2001}).FullOrNothing()));
-	assertEquals(1, book.Size());
+	assertEquals(1, book.first.Size());
 }
 
 void immediate_or_cancel_all_or_nothing_order_should_be_canceled_if_not_filled()
@@ -220,7 +186,7 @@ void immediate_or_cancel_all_or_nothing_order_should_be_canceled_if_not_filled()
 	assertNotExecuted(book, Order::SellLimit(InstrumentId{1}, Quantity{100}, Price{2000}));
 	assertNotExecuted(book, Order::SellLimit(InstrumentId{1}, Quantity{50}, Price{2002}));
 	assertNotExecuted(book, Order::BuyLimit(InstrumentId{1}, Quantity{200}, Price{2001}).FullOrNothing().ImmediateOrCancel());
-	assertEquals(2, book.Size());
+	assertEquals(2, book.first.Size());
 }
 
 void partial_limit_order_should_be_filled_partially_if_not_enough_available_and_remaining_should_be_canceled()
@@ -230,7 +196,7 @@ void partial_limit_order_should_be_filled_partially_if_not_enough_available_and_
 	assertNotExecuted(book, Order::SellLimit(InstrumentId{1}, Quantity{100}, Price{2000}));
 	assertNotExecuted(book, Order::SellLimit(InstrumentId{1}, Quantity{50}, Price{2002}));
 	assertExecutedAt(book, 2000, 100, Order::BuyLimit(InstrumentId{1}, Quantity{200}, Price{2001}).Partial().ImmediateOrCancel());
-	assertEquals(1, book.Size());
+	assertEquals(1, book.first.Size());
 }
 
 int main()
@@ -258,6 +224,8 @@ int main()
 	// time in force (immediate or cancel)
 	test("immediate_or_cancel_all_or_nothing_order_should_be_canceled_if_not_filled", immediate_or_cancel_all_or_nothing_order_should_be_canceled_if_not_filled);
 	test("partial_limit_order_should_be_filled_partially_if_not_enough_available_and_remaining_should_be_canceled", partial_limit_order_should_be_filled_partially_if_not_enough_available_and_remaining_should_be_canceled);
+
+	test("PlaceUpdateCancelTests::should_cancel_pending_order", PlaceUpdateCancelTests::should_cancel_pending_order);
 
     return 0;
 }

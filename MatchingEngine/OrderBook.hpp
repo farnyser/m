@@ -8,7 +8,6 @@
 #include <Core/InstrumentId.hpp>
 #include <Core/Quantity.hpp>
 #include <MatchingEngine/MatchingOrder.hpp>
-#include <Core/Execution.hpp>
 
 namespace M
 {
@@ -57,9 +56,8 @@ namespace M
         {
         }
 	
-		Execution Execute(const TOrder& order)
+		void Execute(const TOrder& order)
 		{
-			Execution result;
 			size_t gc {0};
 			Quantity remaining = order.quantity;
 
@@ -67,23 +65,20 @@ namespace M
 			auto signed_price = order.direction == Direction::Buy ? order.price : - order.price;
 
 			if(order.fulfillment == Fulfillment::Full && !EnsureAvailability(orders, order.quantity, signed_price, order.type))
-			{
-				InsertInBook(order, order.quantity);
-				return result;
-			}
+				return InsertInBook(order, order.quantity);
 
+			auto last_price = Price{0};
 			for(auto& x : orders)
 			{
 				if (x.signed_price <= signed_price || order.type == Type::Market)
 				{
 					auto q = x.quantity < remaining ? x.quantity : remaining;
-					result.quantity.push_back(q);
-					result.price.push_back(x.price);
 					const_cast<MatchingOrder<TOrder>&>(x).quantity -= q;
 					remaining -= q;
 					gc += x.quantity == 0;
-					executionCallback(x, q, x.price);
-					executionCallback(order, q, x.price);
+					executionCallback(x, x.price, q);
+					executionCallback(order, x.price, q);
+					last_price = x.price;
 					if(remaining == 0)
 						break;
 				}
@@ -92,6 +87,9 @@ namespace M
 					break;
 				}
 			}
+
+			if(last_price)
+				priceCallback(last_price);
 
 			// garbage collector
 			if(gc > 0)
@@ -103,13 +101,25 @@ namespace M
 
 			// insert remaining order part into book
 			InsertInBook(order, remaining);
-
-            if(remaining != order.quantity)
-                priceCallback(*result.price.rbegin());
-
-			return result;
 		}
-		
+
+		template <typename TId>
+		bool Cancel(const TId& id)
+		{
+			for(auto i = 0; i < 2; i++)
+			{
+				auto& orders = i == 0 ? buys : sells;
+				for(auto it = orders.begin(); it != orders.end(); ++it)
+				{
+					if(it->id == id)
+					{
+						orders.erase(it);
+						return true;
+					}
+				}
+			}
+		}
+
 		size_t Size() const 
 		{
 			return buys.size() + sells.size();
