@@ -8,10 +8,12 @@
 #include <Core/InstrumentId.hpp>
 #include <Core/Quantity.hpp>
 #include <MatchingEngine/MatchingOrder.hpp>
+#include <Core/OrderStatus.hpp>
 
 namespace M
 {
-	template <typename TOrder, typename TPriceCallback, typename TExecutionCallback>
+
+	template <typename TOrder, typename TPriceCallback, typename TExecutionCallback, typename TOrderLifecycleCallback>
     class OrderBook
     {
 	private:
@@ -19,6 +21,7 @@ namespace M
 		std::set<MatchingOrder<TOrder>> sells;
         TPriceCallback priceCallback;
 		TExecutionCallback executionCallback;
+		TOrderLifecycleCallback orderLifecycleCallback;
 
 		bool EnsureAvailability(const std::set<MatchingOrder<TOrder>>& orders, Quantity quantity, unsigned int signed_price, Type type)
 		{
@@ -38,21 +41,26 @@ namespace M
 
 		void InsertInBook(const TOrder& order, Quantity remaining)
 		{
-			if(remaining == 0 || order.type == Type::Market || order.timeInForce == TimeInForce::ImmediateOrCancel)
+			if(remaining == 0)
 				return;
+
+			if(order.type == Type::Market || order.timeInForce == TimeInForce::ImmediateOrCancel)
+				return orderLifecycleCallback(order, OrderStatus::Canceled);
 
 			if(order.direction == Direction::Buy)
 				buys.insert(MatchingOrder<TOrder>{current++, remaining, order});
 			else
 				sells.insert(MatchingOrder<TOrder>{current++, remaining, order});
+
+			return orderLifecycleCallback(order, OrderStatus::Placed);
 		}
 
 	public:
 		const InstrumentId instrument;
 		unsigned int current{0};
 	
-		OrderBook(const InstrumentId id, TPriceCallback priceCallback, TExecutionCallback executionCallback)
-                : instrument(id), priceCallback(priceCallback), executionCallback(executionCallback)
+		OrderBook(const InstrumentId id, TPriceCallback priceCallback, TExecutionCallback executionCallback, TOrderLifecycleCallback orderLifecycleCallback)
+                : instrument(id), priceCallback(priceCallback), executionCallback(executionCallback), orderLifecycleCallback(orderLifecycleCallback)
         {
         }
 	
@@ -134,21 +142,30 @@ namespace M
 		void VoidExecutionCallback(const TOrder&, Price, Quantity) {}
 
 		template <typename TOrder>
-		M::OrderBook<TOrder, void(*)(Price), void(*)(const TOrder&, Price, Quantity)> OrderBook(M::InstrumentId id)
-		{
-			return M::OrderBook<TOrder, void(*)(Price), void(*)(const TOrder&, Price, Quantity)>(id, VoidPriceCallback, VoidExecutionCallback<TOrder>);
-		};
+		void VoidOrderLifecycleCallback(const TOrder&, OrderStatus) {}
 
-		template <typename TOrder, typename TPriceCallback>
-		M::OrderBook<TOrder, TPriceCallback, void(*)(const TOrder& o, Price p, Quantity q)> OrderBook(M::InstrumentId id, TPriceCallback priceCallback)
+		template <typename TOrder, typename TPriceCallback, typename TExecutionCallback, typename TLifeCycleCallback>
+		auto OrderBook(M::InstrumentId id, TPriceCallback priceCallback, TExecutionCallback executionCallback, TLifeCycleCallback orderLifeCycleCallback)
 		{
-			return M::OrderBook<TOrder, TPriceCallback, void(*)(const TOrder&, Price, Quantity)>(id, priceCallback, VoidExecutionCallback<TOrder>);
+			return M::OrderBook<TOrder, TPriceCallback, TExecutionCallback, TLifeCycleCallback>(id, priceCallback, executionCallback, orderLifeCycleCallback);
 		};
 
 		template <typename TOrder, typename TPriceCallback, typename TExecutionCallback>
-		M::OrderBook<TOrder, TPriceCallback, TExecutionCallback> OrderBook(M::InstrumentId id, TPriceCallback priceCallback, TExecutionCallback executionCallback)
+		auto OrderBook(M::InstrumentId id, TPriceCallback priceCallback, TExecutionCallback executionCallback)
 		{
-			return M::OrderBook<TOrder, TPriceCallback, TExecutionCallback>(id, priceCallback, executionCallback);
+			return Builder::OrderBook<TOrder>(id, priceCallback, executionCallback, VoidOrderLifecycleCallback<TOrder>);
+		};
+
+		template <typename TOrder, typename TPriceCallback>
+		auto OrderBook(M::InstrumentId id, TPriceCallback priceCallback)
+		{
+			return Builder::OrderBook<TOrder>(id, priceCallback, VoidExecutionCallback<TOrder>, VoidOrderLifecycleCallback<TOrder>);
+		};
+
+		template <typename TOrder>
+		auto OrderBook(M::InstrumentId id)
+		{
+			return Builder::OrderBook<TOrder>(id, VoidPriceCallback, VoidExecutionCallback<TOrder>, VoidOrderLifecycleCallback<TOrder>);
 		};
 	}
 }
