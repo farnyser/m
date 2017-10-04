@@ -4,8 +4,7 @@ ROADMAP
 Next steps
 ----------
 
-- handle order update
-- handle stop loss orders
+- publish book with depth of N prices
 - multi-market (NBBO)
 
 Technical Ideas
