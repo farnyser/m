@@ -4,6 +4,7 @@
 #include <map>
 #include <memory>
 #include <Core/Id.hpp>
+#include <MatchingEngine/OrderBook.Builder.hpp>
 
 namespace M
 {

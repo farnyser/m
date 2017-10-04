@@ -1,8 +1,9 @@
 #include <iostream>
 #include <Core/Order.hpp>
-#include <MatchingEngine/OrderBook.hpp>
-#include <Tests/Assert.hpp>
 #include <Core/Id.hpp>
+#include <MatchingEngine/OrderBook.hpp>
+#include <MatchingEngine/OrderBook.Builder.hpp>
+#include <Tests/Assert.hpp>
 
 int main()
 {

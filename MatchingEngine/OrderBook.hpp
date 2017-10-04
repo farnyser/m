@@ -29,14 +29,33 @@ namespace M
 				return;
 
 			if(order.type == Type::Market || order.timeInForce == TimeInForce::ImmediateOrCancel)
-				return orderLifecycleCallback(order, OrderStatus::Canceled);
+				return orderLifecycleCallback(order.identifier, OrderStatus::Canceled);
 
 			if(order.direction == Direction::Buy)
 				buys.insert(MatchingOrder<TOrder>{current++, remaining, order});
 			else
 				sells.insert(MatchingOrder<TOrder>{current++, remaining, order});
 
-			return orderLifecycleCallback(order, OrderStatus::Placed);
+			return orderLifecycleCallback(order.identifier, OrderStatus::Placed);
+		}
+
+		template <typename TId>
+		bool CancelIfPossible(const TId& id)
+		{
+			for(auto i = 0; i < 2; i++)
+			{
+				auto& orders = i == 0 ? buys : sells;
+				for(auto it = orders.begin(); it != orders.end(); ++it)
+				{
+					if(it->identifier == id)
+					{
+						orders.erase(it);
+						return true;
+					}
+				}
+			}
+
+			return false;
 		}
 
 	public:
@@ -96,20 +115,18 @@ namespace M
 		}
 
 		template <typename TId>
-		bool Cancel(const TId& id)
+		void Cancel(const TId& id)
 		{
-			for(auto i = 0; i < 2; i++)
-			{
-				auto& orders = i == 0 ? buys : sells;
-				for(auto it = orders.begin(); it != orders.end(); ++it)
-				{
-					if(it->identifier == id)
-					{
-						orders.erase(it);
-						return true;
-					}
-				}
-			}
+			if(CancelIfPossible(id))
+				orderLifecycleCallback(id, OrderStatus::Canceled);
+		}
+
+		bool Update(const TOrder& order)
+		{
+			if(!CancelIfPossible(order.identifier))
+				orderLifecycleCallback(order.identifier, OrderStatus::Canceled);
+
+			Execute(order);
 		}
 
 		size_t Size() const 
@@ -118,40 +135,6 @@ namespace M
 		}
     };
 
-	namespace Builder
-	{
-		void VoidPriceCallback(Price) {}
-
-		template <typename TOrder>
-		void VoidExecutionCallback(const TOrder&, Price, Quantity) {}
-
-		template <typename TOrder>
-		void VoidOrderLifecycleCallback(const TOrder&, OrderStatus) {}
-
-		template <typename TOrder, typename TPriceCallback, typename TExecutionCallback, typename TLifeCycleCallback>
-		auto OrderBook(M::InstrumentId id, TPriceCallback priceCallback, TExecutionCallback executionCallback, TLifeCycleCallback orderLifeCycleCallback)
-		{
-			return M::OrderBook<TOrder, TPriceCallback, TExecutionCallback, TLifeCycleCallback>(id, priceCallback, executionCallback, orderLifeCycleCallback);
-		};
-
-		template <typename TOrder, typename TPriceCallback, typename TExecutionCallback>
-		auto OrderBook(M::InstrumentId id, TPriceCallback priceCallback, TExecutionCallback executionCallback)
-		{
-			return Builder::OrderBook<TOrder>(id, priceCallback, executionCallback, VoidOrderLifecycleCallback<TOrder>);
-		};
-
-		template <typename TOrder, typename TPriceCallback>
-		auto OrderBook(M::InstrumentId id, TPriceCallback priceCallback)
-		{
-			return Builder::OrderBook<TOrder>(id, priceCallback, VoidExecutionCallback<TOrder>, VoidOrderLifecycleCallback<TOrder>);
-		};
-
-		template <typename TOrder>
-		auto OrderBook(M::InstrumentId id)
-		{
-			return Builder::OrderBook<TOrder>(id, VoidPriceCallback, VoidExecutionCallback<TOrder>, VoidOrderLifecycleCallback<TOrder>);
-		};
-	}
 }
 
 #endif //M_ORDERBOOK_HPP

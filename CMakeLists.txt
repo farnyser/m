@@ -5,7 +5,7 @@ set(CMAKE_CXX_STANDARD 17)
 include_directories(.)
 
 set(CORE_SOURCE_FILES Core/Order.hpp Core/Type.hpp Core/InstrumentId.hpp Core/Price.hpp Core/Quantity.hpp Core/Direction.hpp Core/Fulfillment.h Core/TImeInForce.hpp Core/Id.hpp)
-set(ME_SOURCE_FILES MatchingEngine/MatchingOrder.hpp MatchingEngine/OrderBook.hpp MatchingEngine/Helper.hpp)
+set(ME_SOURCE_FILES MatchingEngine/MatchingOrder.hpp MatchingEngine/OrderBook.hpp MatchingEngine/OrderBook.Builder.hpp MatchingEngine/Helper.hpp)
 set(TOOLING_FILES Tests/Assert.hpp)
 
 set(SOURCE_FILES main.cpp ${CORE_SOURCE_FILES} ${ME_SOURCE_FILES} ${TOOLING_FILES})
