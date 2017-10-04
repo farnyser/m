@@ -9,10 +9,10 @@
 #include <Core/Quantity.hpp>
 #include <MatchingEngine/MatchingOrder.hpp>
 #include <Core/OrderStatus.hpp>
+#include "Helper.hpp"
 
 namespace M
 {
-
 	template <typename TOrder, typename TPriceCallback, typename TExecutionCallback, typename TOrderLifecycleCallback>
     class OrderBook
     {
@@ -22,22 +22,6 @@ namespace M
         TPriceCallback priceCallback;
 		TExecutionCallback executionCallback;
 		TOrderLifecycleCallback orderLifecycleCallback;
-
-		bool EnsureAvailability(const std::set<MatchingOrder<TOrder>>& orders, Quantity quantity, unsigned int signed_price, Type type)
-		{
-			for(auto& x : orders)
-			{
-				if(x.signed_price > signed_price && type != Type::Market)
-					return false;
-
-				if(quantity > x.quantity)
-					quantity -= x.quantity;
-				else
-					return true;
-			}
-
-			return false;
-		}
 
 		void InsertInBook(const TOrder& order, Quantity remaining)
 		{
@@ -72,7 +56,7 @@ namespace M
             auto& orders = order.direction == Direction::Buy ? sells : buys;
 			auto signed_price = order.direction == Direction::Buy ? order.price : - order.price;
 
-			if(order.fulfillment == Fulfillment::Full && !EnsureAvailability(orders, order.quantity, signed_price, order.type))
+			if(order.fulfillment == Fulfillment::Full && !CheckExecutability(orders, order.quantity, signed_price, order.type))
 				return InsertInBook(order, order.quantity);
 
 			auto last_price = Price{0};

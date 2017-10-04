@@ -6,10 +6,11 @@ Next steps
 
 - handle order update
 - handle stop loss orders
-- performance test
-- multimarket (NBBO)
+- multi-market (NBBO)
 
-Ideas
------
+Technical Ideas
+---------------
 
 - pool backed set ?
+- vector instead of set ?
+- keep aggregated book ?

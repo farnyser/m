@@ -19,11 +19,6 @@ namespace M
 
         bool operator<(const MatchingOrder<TOrder> &other) const
         {
-            if (this->type == Type::Market && other.type != Type::Market)
-                return true;
-            if (this->type != Type::Market && other.type == Type::Market)
-                return false;
-
             if (signed_price < other.signed_price)
                 return true;
             if (signed_price > other.signed_price)
